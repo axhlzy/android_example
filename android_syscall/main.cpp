@@ -1,6 +1,12 @@
 #include <iostream>
 #include <cstring>          // strlen
-#include <stdarg.h>         // va_list, va_start, va_end
+#include <cstdarg>         // va_list, va_start, va_end
+#include <asm-generic/unistd.h>
+#include <android/log.h>
+#include <sys/syscall.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "syscall_wrapper.h"
 
 static log_mode_t g_log_mode = (log_mode_t)USE_ANDROID_LOG_DEFAULT;
@@ -55,15 +61,15 @@ void log_print(log_level_t level, const char* format, ...) {
 // ARM64 (AArch64)
 __attribute__((naked)) long raw_syscall(long __number, ...) {
     __asm__ __volatile__(
-            "mov    x8, x0\n"          // 系统调用号存入x8
-            "mov    x0, x1\n"          // 第1个参数
-            "mov    x1, x2\n"          // 第2个参数  
-            "mov    x2, x3\n"          // 第3个参数
-            "mov    x3, x4\n"          // 第4个参数
-            "mov    x4, x5\n"          // 第5个参数
-            "mov    x5, x6\n"          // 第6个参数
-            "svc    #0\n"              // 系统调用
-            "ret\n"                    // 返回
+            "mov    x8, x0\n"          // syscall num save to x8
+            "mov    x0, x1\n"          // arg1
+            "mov    x1, x2\n"          // arg2
+            "mov    x2, x3\n"          // arg3
+            "mov    x3, x4\n"          // arg4
+            "mov    x4, x5\n"          // arg5
+            "mov    x5, x6\n"          // arg6
+            "svc    #0\n"              // invoke
+            "ret\n"                    // return
             :
             :
             : "memory"
@@ -73,17 +79,17 @@ __attribute__((naked)) long raw_syscall(long __number, ...) {
 // ARM32 版本
 __attribute__((naked)) long raw_syscall(long __number, ...) {
     __asm__ __volatile__(
-            "push   {r4-r7, lr}\n"     // 保存寄存器
-            "mov    r7, r0\n"          // 系统调用号存入r7
-            "mov    r0, r1\n"          // 第1个参数
-            "mov    r1, r2\n"          // 第2个参数
-            "mov    r2, r3\n"          // 第3个参数
-            "ldr    r3, [sp, #20]\n"   // 第4个参数从栈中获取
-            "ldr    r4, [sp, #24]\n"   // 第5个参数从栈中获取
-            "ldr    r5, [sp, #28]\n"   // 第6个参数从栈中获取
-            "ldr    r6, [sp, #32]\n"   // 第7个参数从栈中获取
-            "svc    #0\n"              // 系统调用
-            "pop    {r4-r7, pc}\n"     // 恢复寄存器并返回
+            "push   {r4-r7, lr}\n"     // save regs
+            "mov    r7, r0\n"          // syscall num save to r7
+            "mov    r0, r1\n"          // arg1
+            "mov    r1, r2\n"          // arg2
+            "mov    r2, r3\n"          // arg3
+            "ldr    r3, [sp, #20]\n"   // The 4th parameter is obtained from the stack
+            "ldr    r4, [sp, #24]\n"   // The 5th parameter is obtained from the stack
+            "ldr    r5, [sp, #28]\n"   // The 6th parameter is obtained from the stack
+            "ldr    r6, [sp, #32]\n"   // The 7th parameter is obtained from the stack
+            "svc    #0\n"              // invoke
+            "pop    {r4-r7, pc}\n"     // restore regs
             :
             :
             : "memory"
@@ -339,6 +345,10 @@ int main() {
     test_file_operations();
 
     test_advanced_operations();
+
+    LOGI("Press ENTER to continue to second test...");
+    getchar();
+    test_file_operations();
     
     LOGI("Android Raw Syscall Demo Finished");
     return 0;

@@ -42,6 +42,8 @@ int my_copy_file(const char* src, const char* dst);
 int my_file_exists(const char* pathname);
 size_t my_file_size(const char* pathname);
 
+void test_file_operations();
+void test_advanced_operations();
 
 void print_architecture_info();
 
